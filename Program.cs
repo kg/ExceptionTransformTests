@@ -4,38 +4,32 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
+using Mono.Runtime.Internal;
 
-namespace ExceptionTransformTests {
-    public enum __IExceptionFilterResult : int {
+namespace Mono.Runtime.Internal {
+    public enum ExceptionFilterResult : int {
         NOT_EVALUATED = -1,
         exception_continue_search = 0,
         exception_execute_handler = 1
     }
 
-    public interface __IExceptionFilter {
-        __IExceptionFilterResult Result { set; }
-        __IExceptionFilterResult Evaluate (Exception exc);
-    }
+    public abstract class ExceptionFilter {
+        public ExceptionFilterResult Result { get; private set; }
 
-    public class CustomExceptionFilter : __IExceptionFilter {
-        public __IExceptionFilterResult Result { get; set; } = __IExceptionFilterResult.NOT_EVALUATED;
+        public static readonly ThreadLocal<List<ExceptionFilter>> ExceptionFilters = 
+            new ThreadLocal<List<ExceptionFilter>>(() => new List<ExceptionFilter>(128));
 
-        public __IExceptionFilterResult Evaluate (Exception exc) {
-            Console.WriteLine($"CustomFilter.Evaluate({exc.Message}");
-            return __IExceptionFilterResult.exception_execute_handler;
-        }
-    }
+        private static Exception LastEvaluatedException = null;
+        private static bool HasEvaluatedFiltersAlready = false;
 
-    public static class __ExceptionFilterImpl {
-        public static readonly ThreadLocal<List<__IExceptionFilter>> ExceptionFilters = 
-            new ThreadLocal<List<__IExceptionFilter>>(() => new List<__IExceptionFilter>(128));
+        public abstract ExceptionFilterResult Evaluate (Exception exc);
 
-        public static void Push (__IExceptionFilter filter) {
-            filter.Result = __IExceptionFilterResult.NOT_EVALUATED;
+        public static void Push (ExceptionFilter filter) {
+            filter.Result = ExceptionFilterResult.NOT_EVALUATED;
             ExceptionFilters.Value.Add(filter);
         }
 
-        public static void Pop (__IExceptionFilter filter) {
+        public static void Pop (ExceptionFilter filter) {
             var ef = ExceptionFilters.Value;
             if (ef.Count == 0)
                 throw new ThreadStateException("Corrupt exception filter stack");
@@ -45,21 +39,80 @@ namespace ExceptionTransformTests {
                 throw new ThreadStateException("Corrupt exception filter stack");
         }
 
-        public static void Evaluate (Exception exc) {
+        /// <summary>
+        /// Resets the state of all valid exception filters so that we can handle any
+        ///  new exceptions. This is invoked when a filtered block finally processes an
+        ///  exception.
+        /// </summary>
+        public static void Reset () {
             var ef = ExceptionFilters.Value;
+            foreach (var filter in ef)
+                filter.Result = ExceptionFilterResult.NOT_EVALUATED;
+            LastEvaluatedException = null;
+        }
+
+        /// <summary>
+        /// Automatically runs any active exception filters for the exception exc, 
+        ///  then returns true if the provided filter indicated that the current block
+        ///  should run.
+        /// </summary>
+        /// <param name="exc">The exception to pass to the filters</param>
+        /// <param name="filter">The exception filter for the current exception handler</param>
+        /// <returns>true if this filter selected the exception handler to run</returns>
+        public static bool ShouldRunHandler (Exception exc, ExceptionFilter filter) {
+            if (exc == null)
+                throw new ArgumentNullException("exc");
+            if (filter == null)
+                throw new ArgumentNullException("filter");
+
+            PerformEvaluate(exc);
+            return filter.Result == ExceptionFilterResult.exception_execute_handler;
+        }
+
+        /// <summary>
+        /// Runs all active exception filters until one of them returns execute_handler.
+        /// Afterward, the filters will have an initialized Result and the selected one will have
+        ///  a result with the value exception_continue_search.
+        /// If filters have already been run for the active exception they will not be run again.
+        /// </summary>
+        /// <param name="exc">The exception filters are being run for.</param>
+        public static void PerformEvaluate (Exception exc) {
+            if (HasEvaluatedFiltersAlready)
+                return;
+            // FIXME: Attempt to avoid running filters multiple times when unwinding.
+            // I think this doesn't work right for rethrow?
+            if (LastEvaluatedException == exc)
+                return;
+
+            var ef = ExceptionFilters.Value;
+            var hasLocatedValidHandler = false;
+
+            // Set in advance in case the filter throws.
+            // These two state variables allow us to early out in the case where Evaluate() is triggered
+            //  in multiple stack frames while unwinding even though filters have already run.
+            LastEvaluatedException = exc;
+            HasEvaluatedFiltersAlready = true;
+
             for (int i = ef.Count - 1; i >= 0; i--) {
                 var filter = ef[i];
-                filter.Result = filter.Evaluate(exc);
+                if ((filter.Result = filter.Evaluate(exc)) == ExceptionFilterResult.exception_execute_handler) {
+                    hasLocatedValidHandler = true;
+                    break;
+                }
             }
+
+            if (!hasLocatedValidHandler)
+                Console.WriteLine("Located no valid filtered handler for exception");
         }
     }
+}
 
-    public struct BlittableStruct {
-        int i;
-    }
-
-    public struct UnblittableStruct {
-        object o;
+namespace ExceptionTransformTests {
+    public class CustomExceptionFilter : ExceptionFilter {
+        public override ExceptionFilterResult Evaluate (Exception exc) {
+            Console.WriteLine($"CustomFilter.Evaluate({exc.Message})");
+            return ExceptionFilterResult.exception_execute_handler;
+        }
     }
 
     public static class Program {
@@ -69,19 +122,20 @@ namespace ExceptionTransformTests {
             NestedFilters("NestedFilters3");
 
             var customFilter = new CustomExceptionFilter();
-            __ExceptionFilterImpl.Push(customFilter);
+            Mono.Runtime.Internal.ExceptionFilter.Push(customFilter);
             try {
                 NestedFilters("RunCustomFilter");
-            } catch {
-                Console.WriteLine($"CustomFilter result = {customFilter.Result}");
+            } catch (Exception exc) {
+                if (Mono.Runtime.Internal.ExceptionFilter.ShouldRunHandler(exc, customFilter))
+                    Console.WriteLine("CustomFilter ran");
+                else
+                    Console.WriteLine($"CustomFilter result = {customFilter.Result}");
             } finally {
-                __ExceptionFilterImpl.Pop(customFilter);
+                Mono.Runtime.Internal.ExceptionFilter.Pop(customFilter);
             }
 
             CatchAndSilence();
             RunWithExceptionFilter();
-            CatchAndSilenceNoRewrite();
-            CornerCases();
             Empty();
 
             if (Debugger.IsAttached)
@@ -90,7 +144,11 @@ namespace ExceptionTransformTests {
 
         [SuppressRewriting]
         static void PrintException (string message, Exception exc) {
-            Console.WriteLine(exc);
+            var ts = exc.ToString();
+            var lines = ts.Replace(Environment.NewLine, "\n").Split('\n').Take(4);
+            foreach (var line in lines)
+                Console.WriteLine(line);
+            Console.WriteLine();
         }
 
         static void Empty () {
@@ -103,8 +161,13 @@ namespace ExceptionTransformTests {
 
         static void NestedFilters (string s) {
             try {
+                Console.WriteLine($"== NestedFilters({s}) ==");
                 NestedFilters2(s);
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters")) {
+                Console.WriteLine($"NestedFilters caught {exc.Message}");
+            } catch {
+                Console.WriteLine("NestedFilters catch-all ran");
+                throw;
             }
         }
 
@@ -112,6 +175,7 @@ namespace ExceptionTransformTests {
             try {
                 NestedFilters3(s);
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters2")) {
+                Console.WriteLine($"NestedFilters2 caught {exc.Message}");
             }
         }
 
@@ -119,6 +183,7 @@ namespace ExceptionTransformTests {
             try {
                 throw new Exception(s);
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters3")) {
+                Console.WriteLine($"NestedFilters3 caught {exc.Message}");
             }
         }
 
@@ -130,68 +195,9 @@ namespace ExceptionTransformTests {
             Console.WriteLine("DoesNotThrow");
         }
 
-        static void ThrowsGeneric<T> (T value) {
-            throw new Exception("ThrowsGeneric");
-        }
-
         static int ThrowsWithResult (int i) {
             throw new Exception("ThrowsWithResult");
             return i;
-        }
-
-        static void ThrowsWithOut(out int o) {
-            o = 5;
-            throw new Exception("ThrowsWithOut");
-        }
-
-        static void MightThrow (bool b) {
-            if (b)
-                throw new Exception("MightThrow");
-        }
-
-        static BlittableStruct ThrowsOrReturnsStruct (bool b) {
-            if (b)
-                throw new Exception("ThrowsOrReturnsStruct");
-            else
-                return default(BlittableStruct);
-        }
-
-        static int ImplementsProtocol (int i, out ExceptionDispatchInfo exc) {
-            BlittableStruct s = default(BlittableStruct);
-            UnblittableStruct s2 = default(UnblittableStruct);
-
-            exc = null;
-
-            if (i < 0) {
-                exc = ExceptionDispatchInfo.Capture(new ArgumentOutOfRangeException("i"));
-                return default(int);
-            } else {
-                return i;
-            }
-        }
-
-        [SuppressRewriting]
-        static void CatchAndSilenceNoRewrite () {
-            try {
-                throw new Exception("NoRewrite");
-            } catch (Exception exc) {
-                PrintException("Catch and silence no rewrite", exc);
-            }
-        }
-
-        static void CornerCases () {
-            try {
-                ThrowsGeneric<int>(10);
-            } catch (Exception exc) {
-                PrintException("ThrowsGeneric", exc);
-            }
-
-            try {
-                int i;
-                ThrowsWithOut(out i);
-            } catch (Exception exc) {
-                PrintException("ThrowsWithOut", exc);
-            }
         }
 
         static void CatchAndRethrow () {
