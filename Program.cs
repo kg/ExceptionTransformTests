@@ -26,24 +26,20 @@ namespace ExceptionTransformTests {
             try {
                 NestedFilters("RunCustomFilter");
             } catch (Exception exc) {
-                if (Mono.Runtime.Internal.ExceptionFilter.ShouldRunHandler(exc, customFilter))
-                    Console.WriteLine("CustomFilter ran");
-                else
-                    Console.WriteLine($"CustomFilter result = {customFilter.Result}");
+                Console.WriteLine($"CustomFilter result = {customFilter.Result}");
             } finally {
                 Mono.Runtime.Internal.ExceptionFilter.Pop(customFilter);
             }
 
             CatchAndSilence();
             RunWithExceptionFilter();
-            Empty();
+            MultipleTypedCatches();
 
             Console.WriteLine("Done executing");
             if (Debugger.IsAttached)
                 Console.ReadLine();
         }
 
-        [SuppressRewriting]
         static void PrintException (string message, Exception exc) {
             var ts = exc.ToString();
             var lines = ts.Replace(Environment.NewLine, "\n").Split('\n').Take(4);
@@ -52,7 +48,16 @@ namespace ExceptionTransformTests {
             Console.WriteLine();
         }
 
-        static void Empty () {
+        static void MultipleTypedCatches () {
+            try {
+                throw new FieldAccessException();
+            } catch (InvalidOperationException ioe) when (true) {
+                Console.WriteLine("MultipleTypedCatches IOE");
+            } catch (NullReferenceException nre) {
+                Console.WriteLine("MultipleTypedCatches NRE");
+            } catch {
+                Console.WriteLine("MultipleTypedCatches catch");
+            }
         }
 
         static bool FilterOn (Exception exc, string s) {
@@ -64,19 +69,22 @@ namespace ExceptionTransformTests {
             try {
                 Console.WriteLine($"== NestedFilters({s}) ==");
                 NestedFilters2(s);
+                Console.WriteLine("NestedFilters2 didn't throw?");
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters") || false) {
-                Console.WriteLine($"NestedFilters caught {exc.Message}");
+                Console.WriteLine($"NestedFilters caught {exc.Message} via filter");
             } catch {
-                Console.WriteLine("NestedFilters catch-all ran");
+                Console.WriteLine($"NestedFilters caught via fallback");
                 throw;
             }
+            Console.WriteLine("NestedFilters left try and catch");
         }
 
         static void NestedFilters2 (string s) {
             try {
                 NestedFilters3(s);
+                Console.WriteLine("NestedFilters3 didn't throw?");
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters2") || (exc.Message == "nope")) {
-                Console.WriteLine($"NestedFilters2 caught {exc.Message}");
+                Console.WriteLine($"NestedFilters2 caught {exc.Message} via filter");
             }
         }
 
@@ -84,7 +92,7 @@ namespace ExceptionTransformTests {
             try {
                 throw new Exception(s);
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters3")) {
-                Console.WriteLine($"NestedFilters3 caught {exc.Message}");
+                Console.WriteLine($"NestedFilters3 caught {exc.Message} via filter");
             }
         }
 
