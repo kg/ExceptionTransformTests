@@ -218,11 +218,22 @@ namespace ExceptionTransformTests {
     }
 
     public class TestGenericClass<T> {
+        public U GenericInstanceMethodWithFilterAndIndirectReference<U> (T arg1, U arg2) {
+            try {
+                throw new Exception();
+                return arg2;
+            } catch when (Object.Equals(arg1, default(T)) && Object.Equals(arg2, default(U))) {
+                var temp = new List<U>();
+                temp.Add(arg2);
+                return temp[0];
+            }
+        }
+
         public U GenericInstanceMethodWithFilter<U> (T arg1, U arg2) {
             try {
                 throw new Exception();
                 return arg2;
-            } catch when (Object.Equals(arg1, default(T))) {
+            } catch when (Object.Equals(arg1, default(T)) && Object.Equals(arg2, default(U))) {
                 return default(U);
             }
         }
