@@ -35,6 +35,10 @@ namespace ExceptionTransformTests {
             RunWithExceptionFilter();
             MultipleTypedCatches();
 
+            var tempv = new TestGenericClass<int>();
+            var ret = tempv.GenericInstanceMethodWithFilterAndIndirectReference(default(int), "test");
+            Console.WriteLine("ret=" + ret);
+
             Console.WriteLine("Done executing");
             if (Debugger.IsAttached)
                 Console.ReadLine();
@@ -202,9 +206,6 @@ namespace ExceptionTransformTests {
         }
     }
 
-    public class SuppressRewritingAttribute : Attribute {
-    }
-
     public class TestClass {
         public int J;
 
@@ -220,30 +221,11 @@ namespace ExceptionTransformTests {
     public class TestGenericClass<T> {
         public U GenericInstanceMethodWithFilterAndIndirectReference<U> (T arg1, U arg2) {
             try {
-                throw new Exception();
-                return arg2;
-            } catch when (Object.Equals(arg1, default(T)) && Object.Equals(arg2, default(U))) {
+                throw new Exception("Thrown by generic");
+            } catch when (Object.Equals(arg1, default(T))) {
                 var temp = new List<U>();
                 temp.Add(arg2);
                 return temp[0];
-            }
-        }
-
-        public U GenericInstanceMethodWithFilter<U> (T arg1, U arg2) {
-            try {
-                throw new Exception();
-                return arg2;
-            } catch when (Object.Equals(arg1, default(T)) && Object.Equals(arg2, default(U))) {
-                return default(U);
-            }
-        }
-
-        public T InstanceMethodWithFilter (T arg) {
-            try {
-                throw new Exception();
-                return arg;
-            } catch when (Object.Equals(arg, default(T))) {
-                return default(T);
             }
         }
     }
