@@ -34,7 +34,7 @@ namespace ExceptionTransformTests {
             CatchAndSilence();
             RunWithExceptionFilter();
             MultipleTypedCatches();
-            NestedFiltersInOneFunction(7);
+            (new C ()).NestedFiltersInOneFunction("value");
 
             var tempv = new TestGenericClass<int>();
             var ret = tempv.GenericInstanceMethodWithFilterAndIndirectReference(default(int), "test");
@@ -201,134 +201,143 @@ namespace ExceptionTransformTests {
             }
         }
 
-        static void NestedFiltersInOneFunction (int i) {
-            object _expression = null;
-            string value = null;
-            long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
-            object _table = null;
+        public class C {
+            public void NestedFiltersInOneFunction (string value) {
+                object _expression = null;
+                long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
+                object _table = null;
 
-            if (value == null)
-            {
-                value = string.Empty;
-            }
-
-            try
-            {
-                object newExpression = null;
-                if (value.Length > 0)
+                if (value == null)
                 {
-                    object testExpression = new object();
-                    if (true)
-                        newExpression = testExpression;
+                    value = string.Empty;
                 }
 
-                if (_expression == null && newExpression != null)
+                try
                 {
-                    if (false)
+                    object newExpression = null;
+                    if (value.Length > 0)
                     {
-                        throw new Exception();
+                        object testExpression = new object();
+                        if (true)
+                            newExpression = testExpression;
                     }
 
-                    // We need to make sure the column is not involved in any Constriants
-                    if (_table != null)
+                    if (_expression == null && newExpression != null)
                     {
-                    }
-
-                    bool oldReadOnly = false;
-                    try
-                    {
-                        ;
-                    }
-                    catch (Exception e)
-                    {
-                        throw;
-                    }
-                }
-
-                // re-calculate the evaluation queue
-                if (_table != null)
-                {
-                    if (newExpression != null && false)
-                    {
-                        throw new Exception();
-                    }
-
-                    // HandleDependentColumnList(_expression, newExpression);
-                    //hold onto oldExpression in case of error applying new Expression.
-                    object oldExpression = _expression;
-                    _expression = newExpression;
-
-                    // because the column is attached to a table we need to re-calc values
-                    try
-                    {
-                        if (newExpression == null)
+                        if (false)
                         {
-                            Console.WriteLine("a");
-                            /*
-                            for (int i = 0; i < _table.RecordCapacity; i++)
-                            {
-                                InitializeRecord(i);
-                            }
-                            */
-                        }
-                        else
-                        {
-                            Console.WriteLine("b");
-                            //_table.EvaluateExpressions(this);
+                            throw new Exception();
                         }
 
-                        Console.WriteLine("c");
-                        /*
-                        _table.ResetInternalIndexes(this);
-                        _table.EvaluateDependentExpressions(this);
-                        */
-                    }
-                    catch (Exception e1) when (ExceptionFilter(e1))
-                    {
-                        // ExceptionBuilder.TraceExceptionForCapture(e1);
-                        Console.WriteLine("d");
+                        // We need to make sure the column is not involved in any Constriants
+                        if (_table != null)
+                        {
+                        }
+
+                        bool oldReadOnly = false;
                         try
                         {
-                            // in the case of error we need to set the column expression to the old value
-                            _expression = oldExpression;
-                            // HandleDependentColumnList(newExpression, _expression);
-                            /*
-                            if (oldExpression == null)
+                            ;
+                        }
+                        catch (Exception e)
+                        {
+                            throw;
+                        }
+                    }
+
+                    // re-calculate the evaluation queue
+                    if (_table != null)
+                    {
+                        if (newExpression != null && ReturnsFalse())
+                        {
+                            throw new Exception();
+                        }
+
+                        // HandleDependentColumnList(_expression, newExpression);
+                        //hold onto oldExpression in case of error applying new Expression.
+                        object oldExpression = _expression;
+                        _expression = newExpression;
+
+                        // because the column is attached to a table we need to re-calc values
+                        try
+                        {
+                            if (newExpression == null)
                             {
-                                for (int i = 0; i < _table.RecordCapacity; i++)
+                                Console.WriteLine("a");
+                                for (int i = 0; i < 10; i++)
                                 {
-                                    InitializeRecord(i);
+                                    ReturnsFalse();
+                                    // InitializeRecord(i);
                                 }
                             }
                             else
                             {
-                                _table.EvaluateExpressions(this);
+                                Console.WriteLine("b");
+                                //_table.EvaluateExpressions(this);
                             }
-                            */
+
+                            Console.WriteLine("c");
                             /*
                             _table.ResetInternalIndexes(this);
                             _table.EvaluateDependentExpressions(this);
                             */
-                            Console.WriteLine("e");
                         }
-                        catch (Exception e2) when (ExceptionFilter(e2))
+                        catch (Exception e1) when (ExceptionFilter(e1))
                         {
-                            Console.WriteLine("f {0}", e2);
-                            // ExceptionBuilder.TraceExceptionWithoutRethrow(e2);
+                            // ExceptionBuilder.TraceExceptionForCapture(e1);
+                            Console.WriteLine("d");
+                            try
+                            {
+                                // in the case of error we need to set the column expression to the old value
+                                _expression = oldExpression;
+                                ReturnsFalse();
+                                // HandleDependentColumnList(newExpression, _expression);
+                                if (oldExpression == null)
+                                {
+                                    for (int i = 0; i < 10; i++)
+                                    {
+                                        ReturnsFalse();
+                                        // InitializeRecord(i);
+                                    }
+                                }
+                                else
+                                {
+                                    ReturnsFalse(this);
+                                    // _table.EvaluateExpressions(this);
+                                }
+                                ReturnsFalse(this);
+                                /*
+                                _table.ResetInternalIndexes(this);
+                                _table.EvaluateDependentExpressions(this);
+                                */
+                            }
+                            catch (Exception e2) when (ExceptionFilter(e2))
+                            {
+                                Console.WriteLine("f {0}", e2);
+                                // ExceptionBuilder.TraceExceptionWithoutRethrow(e2);
+                            }
+                            throw;
                         }
-                        throw;
+                    }
+                    else
+                    {
+                        //if column is not attached to a table, just set.
+                        _expression = newExpression;
                     }
                 }
-                else
+                finally
                 {
-                    //if column is not attached to a table, just set.
-                    _expression = newExpression;
+                    Console.WriteLine("ExitScope");
+                    // DataCommonEventSource.Log.ExitScope(logScopeId);
                 }
             }
-            finally
-            {
-                Console.WriteLine("ExitScope");
-                // DataCommonEventSource.Log.ExitScope(logScopeId);
+
+            static bool ReturnsFalse (C self) {
+                return false;
+            }
+
+            static bool ReturnsFalse () {
+                return false;
             }
         }
 
