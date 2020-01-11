@@ -202,23 +202,134 @@ namespace ExceptionTransformTests {
         }
 
         static void NestedFiltersInOneFunction (int i) {
-            try {
-                try {
-                    i++;
-                    try {
-                        i++;
-                    } catch (Exception exc) when (ExceptionFilter(exc)) {
-                        Console.WriteLine("Inner filter");
-                        i--;
-                    }
-                } catch (Exception exc) when (ExceptionFilter(exc)) {
-                    Console.WriteLine("Outer filter");
-                    i--;
-                }
-            } finally {
-                i--;
+            object _expression = null;
+            string value = null;
+            long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
+            object _table = null;
+
+            if (value == null)
+            {
+                value = string.Empty;
             }
-            Console.WriteLine("Leaving NestedFiltersInOneFunction with i=={0}", i);
+
+            try
+            {
+                object newExpression = null;
+                if (value.Length > 0)
+                {
+                    object testExpression = new object();
+                    if (true)
+                        newExpression = testExpression;
+                }
+
+                if (_expression == null && newExpression != null)
+                {
+                    if (false)
+                    {
+                        throw new Exception();
+                    }
+
+                    // We need to make sure the column is not involved in any Constriants
+                    if (_table != null)
+                    {
+                    }
+
+                    bool oldReadOnly = false;
+                    try
+                    {
+                        ;
+                    }
+                    catch (Exception e)
+                    {
+                        throw;
+                    }
+                }
+
+                // re-calculate the evaluation queue
+                if (_table != null)
+                {
+                    if (newExpression != null && false)
+                    {
+                        throw new Exception();
+                    }
+
+                    // HandleDependentColumnList(_expression, newExpression);
+                    //hold onto oldExpression in case of error applying new Expression.
+                    object oldExpression = _expression;
+                    _expression = newExpression;
+
+                    // because the column is attached to a table we need to re-calc values
+                    try
+                    {
+                        if (newExpression == null)
+                        {
+                            Console.WriteLine("a");
+                            /*
+                            for (int i = 0; i < _table.RecordCapacity; i++)
+                            {
+                                InitializeRecord(i);
+                            }
+                            */
+                        }
+                        else
+                        {
+                            Console.WriteLine("b");
+                            //_table.EvaluateExpressions(this);
+                        }
+
+                        Console.WriteLine("c");
+                        /*
+                        _table.ResetInternalIndexes(this);
+                        _table.EvaluateDependentExpressions(this);
+                        */
+                    }
+                    catch (Exception e1) when (ExceptionFilter(e1))
+                    {
+                        // ExceptionBuilder.TraceExceptionForCapture(e1);
+                        Console.WriteLine("d");
+                        try
+                        {
+                            // in the case of error we need to set the column expression to the old value
+                            _expression = oldExpression;
+                            // HandleDependentColumnList(newExpression, _expression);
+                            /*
+                            if (oldExpression == null)
+                            {
+                                for (int i = 0; i < _table.RecordCapacity; i++)
+                                {
+                                    InitializeRecord(i);
+                                }
+                            }
+                            else
+                            {
+                                _table.EvaluateExpressions(this);
+                            }
+                            */
+                            /*
+                            _table.ResetInternalIndexes(this);
+                            _table.EvaluateDependentExpressions(this);
+                            */
+                            Console.WriteLine("e");
+                        }
+                        catch (Exception e2) when (ExceptionFilter(e2))
+                        {
+                            Console.WriteLine("f {0}", e2);
+                            // ExceptionBuilder.TraceExceptionWithoutRethrow(e2);
+                        }
+                        throw;
+                    }
+                }
+                else
+                {
+                    //if column is not attached to a table, just set.
+                    _expression = newExpression;
+                }
+            }
+            finally
+            {
+                Console.WriteLine("ExitScope");
+                // DataCommonEventSource.Log.ExitScope(logScopeId);
+            }
         }
 
         static bool ExceptionFilter (Exception exc) {
