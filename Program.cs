@@ -34,6 +34,7 @@ namespace ExceptionTransformTests {
             CatchAndSilence();
             RunWithExceptionFilter();
             MultipleTypedCatches();
+            NestedFiltersInOneFunction(7);
 
             var tempv = new TestGenericClass<int>();
             var ret = tempv.GenericInstanceMethodWithFilterAndIndirectReference(default(int), "test");
@@ -198,6 +199,26 @@ namespace ExceptionTransformTests {
             } catch {
                 Console.WriteLine("Caught without filter");
             }
+        }
+
+        static void NestedFiltersInOneFunction (int i) {
+            try {
+                try {
+                    i++;
+                    try {
+                        i++;
+                    } catch (Exception exc) when (ExceptionFilter(exc)) {
+                        Console.WriteLine("Inner filter");
+                        i--;
+                    }
+                } catch (Exception exc) when (ExceptionFilter(exc)) {
+                    Console.WriteLine("Outer filter");
+                    i--;
+                }
+            } finally {
+                i--;
+            }
+            Console.WriteLine("Leaving NestedFiltersInOneFunction with i=={0}", i);
         }
 
         static bool ExceptionFilter (Exception exc) {
