@@ -4,32 +4,13 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
-using Mono.Runtime.Internal;
 
 namespace ExceptionTransformTests {
-    public class CustomExceptionFilter : ExceptionFilter {
-        public override int Evaluate (object _exc) {
-            var exc = (Exception)_exc;
-            Console.WriteLine($"CustomFilter.Evaluate({exc.Message})");
-            return exception_execute_handler;
-        }
-    }
-
     public static class Program {
         public static void Main (string[] args) {
             Console.WriteLine("Start");
             NestedFilters("NestedFilters");
             NestedFilters("NestedFilters3");
-
-            var customFilter = new CustomExceptionFilter();
-            Mono.Runtime.Internal.ExceptionFilter.Push(customFilter);
-            try {
-                NestedFilters("RunCustomFilter");
-            } catch (Exception exc) {
-                Console.WriteLine($"CustomFilter result = {customFilter.Result}");
-            } finally {
-                Mono.Runtime.Internal.ExceptionFilter.Pop(customFilter);
-            }
 
             CatchAndSilence();
             RunWithExceptionFilter();
@@ -201,69 +182,110 @@ namespace ExceptionTransformTests {
             }
         }
 
-        public class C {
-            public void NestedFiltersInOneFunction (string value) {
-                object _expression = null;
-                long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
-                object _table = null;
+        static bool ExceptionFilter (Exception exc) {
+            Console.WriteLine("Filter received {0}", exc.Message);
+            return false;
+        }
+    }
 
-                if (value == null)
+    public class C {
+        static bool ExceptionFilter (Exception exc) {
+            Console.WriteLine("Filter received {0}", exc.Message);
+            return false;
+        }
+
+        public void NestedFiltersInOneFunction (string value) {
+            object _expression = null;
+            long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
+            object _table = null;
+
+            if (value == null)
+            {
+                value = string.Empty;
+            }
+
+            try
+            {
+                object newExpression = null;
+                if (value.Length > 0)
                 {
-                    value = string.Empty;
+                    object testExpression = new object();
+                    if (true)
+                        newExpression = testExpression;
                 }
 
-                try
+                if (_expression == null && newExpression != null)
                 {
-                    object newExpression = null;
-                    if (value.Length > 0)
+                    if (false)
                     {
-                        object testExpression = new object();
-                        if (true)
-                            newExpression = testExpression;
+                        throw new Exception();
                     }
 
-                    if (_expression == null && newExpression != null)
-                    {
-                        if (false)
-                        {
-                            throw new Exception();
-                        }
-
-                        // We need to make sure the column is not involved in any Constriants
-                        if (_table != null)
-                        {
-                        }
-
-                        bool oldReadOnly = false;
-                        try
-                        {
-                            ;
-                        }
-                        catch (Exception e)
-                        {
-                            throw;
-                        }
-                    }
-
-                    // re-calculate the evaluation queue
+                    // We need to make sure the column is not involved in any Constriants
                     if (_table != null)
                     {
-                        if (newExpression != null && ReturnsFalse())
+                    }
+
+                    bool oldReadOnly = false;
+                    try
+                    {
+                        ;
+                    }
+                    catch (Exception e)
+                    {
+                        throw;
+                    }
+                }
+
+                // re-calculate the evaluation queue
+                if (_table != null)
+                {
+                    if (newExpression != null && ReturnsFalse())
+                    {
+                        throw new Exception();
+                    }
+
+                    // HandleDependentColumnList(_expression, newExpression);
+                    //hold onto oldExpression in case of error applying new Expression.
+                    object oldExpression = _expression;
+                    _expression = newExpression;
+
+                    // because the column is attached to a table we need to re-calc values
+                    try
+                    {
+                        if (newExpression == null)
                         {
-                            throw new Exception();
+                            Console.WriteLine("a");
+                            for (int i = 0; i < 10; i++)
+                            {
+                                ReturnsFalse();
+                                // InitializeRecord(i);
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("b");
+                            //_table.EvaluateExpressions(this);
                         }
 
-                        // HandleDependentColumnList(_expression, newExpression);
-                        //hold onto oldExpression in case of error applying new Expression.
-                        object oldExpression = _expression;
-                        _expression = newExpression;
-
-                        // because the column is attached to a table we need to re-calc values
+                        Console.WriteLine("c");
+                        /*
+                        _table.ResetInternalIndexes(this);
+                        _table.EvaluateDependentExpressions(this);
+                        */
+                    }
+                    catch (Exception e1) when (ExceptionFilter(e1))
+                    {
+                        // ExceptionBuilder.TraceExceptionForCapture(e1);
+                        Console.WriteLine("d");
                         try
                         {
-                            if (newExpression == null)
+                            // in the case of error we need to set the column expression to the old value
+                            _expression = oldExpression;
+                            ReturnsFalse();
+                            // HandleDependentColumnList(newExpression, _expression);
+                            if (oldExpression == null)
                             {
-                                Console.WriteLine("a");
                                 for (int i = 0; i < 10; i++)
                                 {
                                     ReturnsFalse();
@@ -272,77 +294,82 @@ namespace ExceptionTransformTests {
                             }
                             else
                             {
-                                Console.WriteLine("b");
-                                //_table.EvaluateExpressions(this);
+                                ReturnsFalse(this);
+                                // _table.EvaluateExpressions(this);
                             }
-
-                            Console.WriteLine("c");
+                            ReturnsFalse(this);
                             /*
                             _table.ResetInternalIndexes(this);
                             _table.EvaluateDependentExpressions(this);
                             */
                         }
-                        catch (Exception e1) when (ExceptionFilter(e1))
+                        catch (Exception e2) when (ExceptionFilter(e2))
                         {
-                            // ExceptionBuilder.TraceExceptionForCapture(e1);
-                            Console.WriteLine("d");
-                            try
-                            {
-                                // in the case of error we need to set the column expression to the old value
-                                _expression = oldExpression;
-                                ReturnsFalse();
-                                // HandleDependentColumnList(newExpression, _expression);
-                                if (oldExpression == null)
-                                {
-                                    for (int i = 0; i < 10; i++)
-                                    {
-                                        ReturnsFalse();
-                                        // InitializeRecord(i);
-                                    }
-                                }
-                                else
-                                {
-                                    ReturnsFalse(this);
-                                    // _table.EvaluateExpressions(this);
-                                }
-                                ReturnsFalse(this);
-                                /*
-                                _table.ResetInternalIndexes(this);
-                                _table.EvaluateDependentExpressions(this);
-                                */
-                            }
-                            catch (Exception e2) when (ExceptionFilter(e2))
-                            {
-                                Console.WriteLine("f {0}", e2);
-                                // ExceptionBuilder.TraceExceptionWithoutRethrow(e2);
-                            }
-                            throw;
+                            Console.WriteLine("f {0}", e2);
+                            // ExceptionBuilder.TraceExceptionWithoutRethrow(e2);
                         }
-                    }
-                    else
-                    {
-                        //if column is not attached to a table, just set.
-                        _expression = newExpression;
+                        throw;
                     }
                 }
-                finally
+                else
                 {
-                    Console.WriteLine("ExitScope");
-                    // DataCommonEventSource.Log.ExitScope(logScopeId);
+                    //if column is not attached to a table, just set.
+                    _expression = newExpression;
                 }
             }
-
-            static bool ReturnsFalse (C self) {
-                return false;
-            }
-
-            static bool ReturnsFalse () {
-                return false;
+            finally
+            {
+                Console.WriteLine("ExitScope");
+                // DataCommonEventSource.Log.ExitScope(logScopeId);
             }
         }
 
-        static bool ExceptionFilter (Exception exc) {
-            Console.WriteLine("Filter received {0}", exc.Message);
+        static int One (bool b) {
+            if (b) return 1;
+            else return 0;
+        }
+
+        public void Lopsided () {
+            int i = 0;
+            try {
+                i += One(true);
+            } catch (Exception exc) when (ExceptionFilter(exc)) {
+                Console.WriteLine("Layer 1");
+                i += One(true);
+                try {
+                    i += One(true);
+                } catch (Exception exc2) when (ExceptionFilter(exc2)) {
+                    Console.WriteLine("Layer 2");
+                    i += One(true);
+                    try {
+                        i += One(true);
+                    } catch (Exception exc3) when (ExceptionFilter(exc3)) {
+                        Console.WriteLine("Layer 3");
+                        i += One(true);
+                        try {
+                            i += One(true);
+                        } catch (Exception exc4) when (ExceptionFilter(exc4)) {
+                            Console.WriteLine("Layer 4");
+                            i += One(true);
+                            /* FIXME: The finally clauses break the rewriter
+                        } finally {
+                            Console.WriteLine("Innermost finally");
+                            */
+                        }
+                    }
+                }
+                /*
+            } finally {
+                Console.WriteLine("Outmost finally");
+                */
+            }
+        }
+
+        static bool ReturnsFalse (C self) {
+            return false;
+        }
+
+        static bool ReturnsFalse () {
             return false;
         }
     }

@@ -53,11 +53,5 @@
   <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="C:\Users\Katelyn\Documents\Projects\ExceptionRewriter\ExceptionFilterSupport\ExceptionFilterSupport.csproj">
-      <Project>{298d59e4-c5e9-4df3-8dd4-582bb04afdb5}</Project>
-      <Name>ExceptionFilterSupport</Name>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
