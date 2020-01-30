@@ -351,11 +351,16 @@ namespace ExceptionTransformTests {
                         } catch (Exception exc4) when (ExceptionFilter(exc4)) {
                             Console.WriteLine("Layer 4");
                             i += One(true);
+                            if (One(false) == 1)
+                                throw;
                             /* FIXME: The finally clauses break the rewriter
                         } finally {
                             Console.WriteLine("Innermost finally");
                             */
                         }
+
+                        if (One(true) == 1)
+                            throw;
                     }
                 }
                 /*
