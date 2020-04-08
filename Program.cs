@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using System.Threading;
@@ -36,7 +37,7 @@ namespace ExceptionTransformTests {
 
         static void MultipleTypedCatches () {
             try {
-                throw new FieldAccessException();
+                throw new FieldAccessException("Thrown by MultipleTypedCatches on purpose");
             } catch (InvalidOperationException ioe) when (true) {
                 Console.WriteLine("MultipleTypedCatches IOE");
             } catch (NullReferenceException nre) {
@@ -370,12 +371,151 @@ namespace ExceptionTransformTests {
             }
         }
 
+        public void TestReturns () {
+            int i = 0;
+            try {
+                i += One(true);
+            } catch (Exception exc) when (ExceptionFilter(exc)) {
+                Console.WriteLine("Layer 1");
+                i += One(true);
+                return;
+                /*
+            } finally {
+                Console.WriteLine("Outmost finally");
+                */
+            }
+        }
+
+        public float TestReturnValue () {
+            int i = 0;
+            try {
+                i += One(true);
+            } catch (Exception exc) when (ExceptionFilter(exc)) {
+                Console.WriteLine("Layer 1");
+                i += One(true);
+                return 3.0f;
+                /*
+            } finally {
+                Console.WriteLine("Outmost finally");
+                */
+            }
+
+            return 1.0f;
+        }
+
         static bool ReturnsFalse (C self) {
             return false;
         }
 
         static bool ReturnsFalse () {
             return false;
+        }
+    }
+
+    public class WebRequest { }
+
+    public class WebException : Exception {
+        public WebException (string message, Exception innerException)
+            : base (message, innerException) {
+        }
+    }
+
+    public class SecurityException : Exception { }
+
+    public class ChunkedMemoryStream : MemoryStream {
+        public ChunkedMemoryStream () {
+        }
+    }
+
+    public class WebClient {
+        WebRequest _webRequest;
+
+        public static Uri GetUri (string address) {
+            return new Uri(address);
+        }
+
+        public static Uri GetUri (Uri uri) {
+            return uri;
+        }
+
+        public WebRequest GetWebRequest (Uri uri) {
+            return new WebRequest();
+        }
+
+        public static void ThrowIfNull<T> (T value, string name) {
+            if (value == null)
+                throw new ArgumentNullException(name);
+        }
+
+        public void StartOperation () {
+        }
+
+        public void EndOperation () {
+        }
+
+        public void AbortRequest (WebRequest request) {
+        }
+
+        private byte[] DownloadBits (WebRequest request, Stream s) {
+            return null;
+        }
+
+        // FIXME: This method only reproduces the related issue if it is optimized
+        public void DownloadFile(Uri address, string fileName)
+        {
+            ThrowIfNull(address, nameof(address));
+            ThrowIfNull(fileName, nameof(fileName));
+
+            WebRequest request = null;
+            FileStream fs = null;
+            bool succeeded = false;
+            StartOperation();
+            try
+            {
+                fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
+                request = _webRequest = GetWebRequest(GetUri(address));
+                DownloadBits(request, fs);
+                succeeded = true;
+            }
+            catch (Exception e) when (!(e is OutOfMemoryException))
+            {
+                AbortRequest(request);
+                if (e is WebException || e is SecurityException) throw;
+                throw new WebException("SR.net_webclient", e);
+            }
+            finally
+            {
+                if (fs != null)
+                {
+                    fs.Close();
+                    if (!succeeded)
+                    {
+                        File.Delete(fileName);
+                    }
+                }
+                EndOperation();
+            }
+        }
+
+        private byte[] DownloadDataInternal(Uri address, out WebRequest request)
+        {
+            WebRequest tmpRequest = null;
+            byte[] result;
+
+            try
+            {
+                tmpRequest = _webRequest = GetWebRequest(GetUri(address));
+                result = DownloadBits(tmpRequest, new ChunkedMemoryStream());
+            }
+            catch (Exception e) when (!(e is OutOfMemoryException))
+            {
+                AbortRequest(tmpRequest);
+                if (e is WebException || e is SecurityException) throw;
+                throw new WebException("SR.net_webclient", e);
+            }
+
+            request = tmpRequest;
+            return result;
         }
     }
 
