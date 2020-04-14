@@ -195,6 +195,9 @@ namespace ExceptionTransformTests {
             return false;
         }
 
+        bool a = true;
+        bool b = false;
+
         public void NestedFiltersInOneFunction (string value) {
             object _expression = null;
             long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
@@ -211,13 +214,13 @@ namespace ExceptionTransformTests {
                 if (value.Length > 0)
                 {
                     object testExpression = new object();
-                    if (true)
+                    if (a)
                         newExpression = testExpression;
                 }
 
                 if (_expression == null && newExpression != null)
                 {
-                    if (false)
+                    if (b)
                     {
                         throw new Exception();
                     }
@@ -230,10 +233,11 @@ namespace ExceptionTransformTests {
                     bool oldReadOnly = false;
                     try
                     {
-                        ;
+                        Console.WriteLine("Dead try");
                     }
                     catch (Exception e)
                     {
+                        Console.WriteLine("Dead catch");
                         throw;
                     }
                 }
