@@ -358,20 +358,49 @@ namespace ExceptionTransformTests {
                             i += One(true);
                             if (One(false) == 1)
                                 throw;
-                            /* FIXME: The finally clauses break the rewriter
-                        } finally {
-                            Console.WriteLine("Innermost finally");
-                            */
                         }
 
                         if (One(true) == 1)
                             throw;
                     }
                 }
-                /*
+            }
+        }
+
+        public void LopsidedWithFinally () {
+            int i = 0;
+            try {
+                i += One(true);
+            } catch (Exception exc) when (ExceptionFilter(exc)) {
+                Console.WriteLine("Layer 1");
+                i += One(true);
+                try {
+                    i += One(true);
+                } catch (Exception exc2) when (ExceptionFilter(exc2)) {
+                    Console.WriteLine("Layer 2");
+                    i += One(true);
+                    try {
+                        i += One(true);
+                    } catch (Exception exc3) when (ExceptionFilter(exc3)) {
+                        Console.WriteLine("Layer 3");
+                        i += One(true);
+                        try {
+                            i += One(true);
+                        } catch (Exception exc4) when (ExceptionFilter(exc4)) {
+                            Console.WriteLine("Layer 4");
+                            i += One(true);
+                            if (One(false) == 1)
+                                throw;
+                        } finally {
+                            Console.WriteLine("Innermost finally");
+                        }
+
+                        if (One(true) == 1)
+                            throw;
+                    }
+                }
             } finally {
                 Console.WriteLine("Outmost finally");
-                */
             }
         }
 
@@ -383,10 +412,6 @@ namespace ExceptionTransformTests {
                 Console.WriteLine("Layer 1");
                 i += One(true);
                 return;
-                /*
-            } finally {
-                Console.WriteLine("Outmost finally");
-                */
             }
         }
 
@@ -398,13 +423,43 @@ namespace ExceptionTransformTests {
                 Console.WriteLine("Layer 1");
                 i += One(true);
                 return 3.0f;
-                /*
-            } finally {
-                Console.WriteLine("Outmost finally");
-                */
             }
 
             return 1.0f;
+        }
+
+        public float TestReturnValueWithFinallyAndDefault () {
+            int i = 0;
+            try {
+                i += One(true);
+            } catch (Exception exc) when (ExceptionFilter(exc)) {
+                Console.WriteLine("Layer 1");
+                i += One(true);
+                return 3.0f;
+            } catch {
+                Console.WriteLine("Fallback catch");
+                i += One(true);
+                return 4.0f;
+            } finally {
+                Console.WriteLine("Outmost finally");
+            }
+
+            return 2.0f;
+        }
+
+        public void TestRefParam (ref int a, ref float b) {
+            a += 1;
+            b += 1.5f;
+
+            try {
+                b -= a;
+            } catch (Exception exc) when (ExceptionFilter(exc)) {
+                a += 2;
+                b += 3.5f;
+            } finally {
+                a -= 1;
+                b += 3f;
+            }
         }
 
         static bool ReturnsFalse (C self) {
