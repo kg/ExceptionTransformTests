@@ -16,7 +16,16 @@ namespace ExceptionTransformTests {
             CatchAndSilence();
             RunWithExceptionFilter();
             MultipleTypedCatches();
-            (new C ()).NestedFiltersInOneFunction("value");
+            ThrowInsideBrokenFilter();
+
+            var c = new C();
+            c.NestedFiltersInOneFunction("value");
+            c.LopsidedWithFinally();
+            c.TestReturnValueWithFinallyAndDefault();
+            int x = 5;
+            float y = 7;
+            c.TestRefParam(ref x, ref y);
+            Console.WriteLine($"x = {x}, y = {y}");
 
             var tempv = new TestGenericClass<int>();
             var ret = tempv.GenericInstanceMethodWithFilterAndIndirectReference(default(int), "test");
@@ -48,7 +57,7 @@ namespace ExceptionTransformTests {
         }
 
         static bool FilterOn (Exception exc, string s) {
-            Console.WriteLine($"FilterOn({s}) processing {exc.Message}");
+            Console.WriteLine($"FilterOn({s}) processing '{exc.Message}'");
             return exc.Message == s;
         }
 
@@ -58,9 +67,9 @@ namespace ExceptionTransformTests {
                 NestedFilters2(s);
                 Console.WriteLine("NestedFilters2 didn't throw?");
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters") || false) {
-                Console.WriteLine($"NestedFilters caught {exc.Message} via filter");
+                Console.WriteLine($"NestedFilters caught '{exc.Message}' via filter");
             } catch {
-                Console.WriteLine($"NestedFilters caught via fallback");
+                Console.WriteLine($"NestedFilters caught unknown via fallback");
                 throw;
             }
             Console.WriteLine("NestedFilters left try and catch");
@@ -71,7 +80,7 @@ namespace ExceptionTransformTests {
                 NestedFilters3(s);
                 Console.WriteLine("NestedFilters3 didn't throw?");
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters2") || (exc.Message == "nope")) {
-                Console.WriteLine($"NestedFilters2 caught {exc.Message} via filter");
+                Console.WriteLine($"NestedFilters2 caught '{exc.Message}' via filter");
             }
         }
 
@@ -79,7 +88,7 @@ namespace ExceptionTransformTests {
             try {
                 throw new Exception(s);
             } catch (Exception exc) when (FilterOn(exc, "NestedFilters3")) {
-                Console.WriteLine($"NestedFilters3 caught {exc.Message} via filter");
+                Console.WriteLine($"NestedFilters3 caught '{exc.Message}' via filter");
             }
         }
 
@@ -183,16 +192,35 @@ namespace ExceptionTransformTests {
             }
         }
 
+        static void ThrowInsideBrokenFilter () {
+            try {
+                try {
+                    throw new Exception("test");
+                } catch (Exception exc) when (BrokenExceptionFilter(exc)) {
+                    Console.WriteLine("Exc handler was selected by broken filter");
+                } catch {
+                    Console.WriteLine("Fall-through catch in broken function rethrowing");
+                    throw;
+                }
+            } catch (Exception exc) {
+                Console.WriteLine($"Outer catch enclosing broken filter caught exception {exc.GetType().Name}: {exc.Message}");
+            }
+        }
+
+        static bool BrokenExceptionFilter (Exception exc) {
+            throw new Exception("Broken filter", exc);
+        }
+
         static bool ExceptionFilter (Exception exc) {
-            Console.WriteLine("Filter received {0}", exc.Message);
+            Console.WriteLine("Filter received '{0}'", exc.Message);
             return false;
         }
     }
 
     public class C {
         static bool ExceptionFilter (Exception exc) {
-            Console.WriteLine("Filter received {0}", exc.Message);
-            return false;
+            Console.WriteLine("Filter received '{0}'", exc.Message);
+            return (exc.Message == "catch");
         }
 
         bool a = true;
@@ -453,6 +481,8 @@ namespace ExceptionTransformTests {
 
             try {
                 b -= a;
+                throw new Exception("catch");
+                b += 3;
             } catch (Exception exc) when (ExceptionFilter(exc)) {
                 a += 2;
                 b += 3.5f;
