@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 
@@ -31,6 +32,10 @@ namespace ExceptionTransformTests {
             var ret = tempv.GenericInstanceMethodWithFilterAndIndirectReference(default(int), "test");
             Console.WriteLine("ret=" + ret);
 
+            Console.WriteLine("test_0_filter_caller_area={0}", MiniTests.test_0_filter_caller_area());
+            Console.WriteLine("test_1234_complicated_filter_catch={0}", MiniTests.test_1234_complicated_filter_catch());
+            Console.WriteLine("test_1_basic_filter_catch={0}", MiniTests.test_1_basic_filter_catch());
+
             Console.WriteLine("Done executing");
             if (Debugger.IsAttached)
                 Console.ReadLine();
@@ -56,6 +61,7 @@ namespace ExceptionTransformTests {
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static bool FilterOn (Exception exc, string s) {
             Console.WriteLine($"FilterOn({s}) processing '{exc.Message}'");
             return exc.Message == s;
@@ -92,14 +98,17 @@ namespace ExceptionTransformTests {
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static void Throws () {
             throw new Exception("Throws");
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static void DoesNotThrow () {
             Console.WriteLine("DoesNotThrow");
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static int ThrowsWithResult (int i) {
             throw new Exception("ThrowsWithResult");
             return i;
@@ -207,10 +216,12 @@ namespace ExceptionTransformTests {
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static bool BrokenExceptionFilter (Exception exc) {
             throw new Exception("Broken filter", exc);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static bool ExceptionFilter (Exception exc) {
             Console.WriteLine("Filter received '{0}'", exc.Message);
             return false;
@@ -218,6 +229,7 @@ namespace ExceptionTransformTests {
     }
 
     public class C {
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static bool ExceptionFilter (Exception exc) {
             Console.WriteLine("Filter received '{0}'", exc.Message);
             return (exc.Message == "catch");
@@ -231,50 +243,39 @@ namespace ExceptionTransformTests {
             long logScopeId = 0; // DataCommonEventSource.Log.EnterScope("<ds.DataColumn.set_Expression|API> {0}, '{1}'", ObjectID, value);
             object _table = null;
 
-            if (value == null)
-            {
+            if (value == null) {
                 value = string.Empty;
             }
 
-            try
-            {
+            try {
                 object newExpression = null;
-                if (value.Length > 0)
-                {
+                if (value.Length > 0) {
                     object testExpression = new object();
                     if (a)
                         newExpression = testExpression;
                 }
 
-                if (_expression == null && newExpression != null)
-                {
-                    if (b)
-                    {
+                if (_expression == null && newExpression != null) {
+                    if (b) {
                         throw new Exception();
                     }
 
                     // We need to make sure the column is not involved in any Constriants
-                    if (_table != null)
-                    {
+                    if (_table != null) {
                     }
 
                     bool oldReadOnly = false;
-                    try
-                    {
+                    try {
                         Console.WriteLine("Dead try");
-                    }
-                    catch (Exception e)
-                    {
+                    } catch (Exception e) {
                         Console.WriteLine("Dead catch");
                         throw;
                     }
                 }
 
                 // re-calculate the evaluation queue
-                if (_table != null)
-                {
-                    if (newExpression != null && ReturnsFalse())
-                    {
+                if (_table != null) {
+                    if (newExpression != null && ReturnsFalse()) {
                         throw new Exception();
                     }
 
@@ -284,19 +285,14 @@ namespace ExceptionTransformTests {
                     _expression = newExpression;
 
                     // because the column is attached to a table we need to re-calc values
-                    try
-                    {
-                        if (newExpression == null)
-                        {
+                    try {
+                        if (newExpression == null) {
                             Console.WriteLine("a");
-                            for (int i = 0; i < 10; i++)
-                            {
+                            for (int i = 0; i < 10; i++) {
                                 ReturnsFalse();
                                 // InitializeRecord(i);
                             }
-                        }
-                        else
-                        {
+                        } else {
                             Console.WriteLine("b");
                             //_table.EvaluateExpressions(this);
                         }
@@ -306,27 +302,20 @@ namespace ExceptionTransformTests {
                         _table.ResetInternalIndexes(this);
                         _table.EvaluateDependentExpressions(this);
                         */
-                    }
-                    catch (Exception e1) when (ExceptionFilter(e1))
-                    {
+                    } catch (Exception e1) when (ExceptionFilter(e1)) {
                         // ExceptionBuilder.TraceExceptionForCapture(e1);
                         Console.WriteLine("d");
-                        try
-                        {
+                        try {
                             // in the case of error we need to set the column expression to the old value
                             _expression = oldExpression;
                             ReturnsFalse();
                             // HandleDependentColumnList(newExpression, _expression);
-                            if (oldExpression == null)
-                            {
-                                for (int i = 0; i < 10; i++)
-                                {
+                            if (oldExpression == null) {
+                                for (int i = 0; i < 10; i++) {
                                     ReturnsFalse();
                                     // InitializeRecord(i);
                                 }
-                            }
-                            else
-                            {
+                            } else {
                                 ReturnsFalse(this);
                                 // _table.EvaluateExpressions(this);
                             }
@@ -335,28 +324,23 @@ namespace ExceptionTransformTests {
                             _table.ResetInternalIndexes(this);
                             _table.EvaluateDependentExpressions(this);
                             */
-                        }
-                        catch (Exception e2) when (ExceptionFilter(e2))
-                        {
+                        } catch (Exception e2) when (ExceptionFilter(e2)) {
                             Console.WriteLine("f {0}", e2);
                             // ExceptionBuilder.TraceExceptionWithoutRethrow(e2);
                         }
                         throw;
                     }
-                }
-                else
-                {
+                } else {
                     //if column is not attached to a table, just set.
                     _expression = newExpression;
                 }
-            }
-            finally
-            {
+            } finally {
                 Console.WriteLine("ExitScope");
                 // DataCommonEventSource.Log.ExitScope(logScopeId);
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static int One (bool b) {
             if (b) return 1;
             else return 0;
@@ -492,10 +476,12 @@ namespace ExceptionTransformTests {
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static bool ReturnsFalse (C self) {
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         static bool ReturnsFalse () {
             return false;
         }
@@ -505,7 +491,7 @@ namespace ExceptionTransformTests {
 
     public class WebException : Exception {
         public WebException (string message, Exception innerException)
-            : base (message, innerException) {
+            : base(message, innerException) {
         }
     }
 
@@ -550,8 +536,7 @@ namespace ExceptionTransformTests {
         }
 
         // FIXME: This method only reproduces the related issue if it is optimized
-        public void DownloadFile(Uri address, string fileName)
-        {
+        public void DownloadFile (Uri address, string fileName) {
             ThrowIfNull(address, nameof(address));
             ThrowIfNull(fileName, nameof(fileName));
 
@@ -559,26 +544,19 @@ namespace ExceptionTransformTests {
             FileStream fs = null;
             bool succeeded = false;
             StartOperation();
-            try
-            {
+            try {
                 fs = new FileStream(fileName, FileMode.Create, FileAccess.Write);
                 request = _webRequest = GetWebRequest(GetUri(address));
                 DownloadBits(request, fs);
                 succeeded = true;
-            }
-            catch (Exception e) when (!(e is OutOfMemoryException))
-            {
+            } catch (Exception e) when (!(e is OutOfMemoryException)) {
                 AbortRequest(request);
                 if (e is WebException || e is SecurityException) throw;
                 throw new WebException("SR.net_webclient", e);
-            }
-            finally
-            {
-                if (fs != null)
-                {
+            } finally {
+                if (fs != null) {
                     fs.Close();
-                    if (!succeeded)
-                    {
+                    if (!succeeded) {
                         File.Delete(fileName);
                     }
                 }
@@ -586,18 +564,14 @@ namespace ExceptionTransformTests {
             }
         }
 
-        private byte[] DownloadDataInternal(Uri address, out WebRequest request)
-        {
+        private byte[] DownloadDataInternal (Uri address, out WebRequest request) {
             WebRequest tmpRequest = null;
             byte[] result;
 
-            try
-            {
+            try {
                 tmpRequest = _webRequest = GetWebRequest(GetUri(address));
                 result = DownloadBits(tmpRequest, new ChunkedMemoryStream());
-            }
-            catch (Exception e) when (!(e is OutOfMemoryException))
-            {
+            } catch (Exception e) when (!(e is OutOfMemoryException)) {
                 AbortRequest(tmpRequest);
                 if (e is WebException || e is SecurityException) throw;
                 throw new WebException("SR.net_webclient", e);
@@ -629,6 +603,96 @@ namespace ExceptionTransformTests {
                 temp.Add(arg2);
                 return temp[0];
             }
+        }
+    }
+
+    public static class MiniTests {
+        public class MyException : Exception {
+            public int marker = 0;
+            public string res = "";
+
+            public MyException (String res) {
+                this.res = res;
+            }
+
+            public bool FilterWithoutState () {
+                var ret = this.marker == 0x666;
+                Console.WriteLine($"FilterWithoutState returning {ret}");
+                return ret;
+            }
+
+            public bool FilterWithState () {
+                bool ret = this.marker == 0x566;
+                this.marker += 0x100;
+                Console.WriteLine($"FilterWithState returning {ret}");
+                return ret;
+            }
+
+            public bool FilterWithStringState () {
+                bool ret = this.marker == 0x777;
+                this.res = "fromFilter_" + this.res;
+                Console.WriteLine($"FilterWithStringState returning {ret}");
+                return ret;
+            }
+        }
+
+        public static int test_1_basic_filter_catch () {
+            try {
+                MyException e = new MyException("");
+                e.marker = 0x1337;
+                throw e;
+            } catch (MyException ex) when (ex.marker == 0x1337) {
+                return 1;
+            }
+            return 0;
+        }
+
+        public static int test_1234_complicated_filter_catch () {
+            string res = "init";
+            try {
+                MyException e = new MyException(res);
+                e.marker = 0x566;
+                try {
+                    try {
+                        throw e;
+                    } catch (MyException ex) when (ex.FilterWithoutState()) {
+                        res = "WRONG_" + res;
+                    } finally {
+                        e.marker = 0x777;
+                        res = "innerFinally_" + res;
+                    }
+                } catch (MyException ex) when (ex.FilterWithState()) {
+                    res = "2ndcatch_" + res;
+                }
+                // "2ndcatch_innerFinally_init"
+                // Console.WriteLine ("res1: " + res);
+                e.res = res;
+                throw e;
+            } catch (MyException ex) when (ex.FilterWithStringState()) {
+                res = "fwos_" + ex.res;
+            } finally {
+                res = "outerFinally_" + res;
+            }
+            // Console.WriteLine ("res2: " + res);
+            return "outerFinally_fwos_fromFilter_2ndcatch_innerFinally_init" == res ? 1234 : 0;
+        }
+
+        public struct FooStruct {
+            public long Part1 { get; }
+            public long Part2 { get; }
+
+            public byte Part3 { get; }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static bool ExceptionFilter (byte x, FooStruct item) => true;
+
+        public static int test_0_filter_caller_area () {
+            try {
+                throw new Exception();
+            } catch (Exception) when (ExceptionFilter(default(byte), default(FooStruct))) {
+            }
+            return 0;
         }
     }
 }
