@@ -654,6 +654,7 @@ namespace ExceptionTransformTests {
                 e.marker = 0x566;
                 try {
                     try {
+                        Console.WriteLine("Throw #1");
                         throw e;
                     } catch (MyException ex) when (ex.FilterWithoutState()) {
                         res = "WRONG_" + res;
@@ -665,15 +666,16 @@ namespace ExceptionTransformTests {
                     res = "2ndcatch_" + res;
                 }
                 // "2ndcatch_innerFinally_init"
-                // Console.WriteLine ("res1: " + res);
+                Console.WriteLine ("Throw #2. res1: " + res);
                 e.res = res;
                 throw e;
             } catch (MyException ex) when (ex.FilterWithStringState()) {
+                Console.WriteLine ("Outermost catch, ex.res: " + ex.res);
                 res = "fwos_" + ex.res;
             } finally {
                 res = "outerFinally_" + res;
             }
-            // Console.WriteLine ("res2: " + res);
+            Console.WriteLine ("res2: " + res);
             return "outerFinally_fwos_fromFilter_2ndcatch_innerFinally_init" == res ? 1234 : 0;
         }
 
